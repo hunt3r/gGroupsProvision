@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<root>
+<settings>
+  <database>
+    <db_host>localhost</db_host>
+    <db_port>3306</db_port>
+    <db>myDB</db>
+    <db_user>myDbUser</db_user>
+    <db_pass>myDbPass</db_pass>
+  </database>  
+  <googleapps>
+    <g_user>googleUser</g_user>
+    <g_pass>googlePass</g_pass>
+    <g_domain>mydomain.org</g_domain>
+  </googleapps>
+</settings>
+<groups>
+  <group>
+    <id>MyTest1</id>
+    <permissions>Owner</permissions>
+    <name>My Full Name For Test 1</name>
+    <description>Test 1 Decription</description>
+    <owner>hunter@phillymtb.org, president@phillymtb.org</owner>
+    <query>select mail from users where name like '%hunter%' or name like 'fish%'</query>
+  </group>
+  <group>
+    <id>My Test 2</id>
+    <permissions>Owner</permissions>
+    <name>My Full Name For Test 2</name>
+    <description>My new great test is really cool</description>
+    <owner>hunter@phillymtb.org, president@phillymtb.org</owner>
+    <query>select mail from users limit 0,10</query>
+  </group>
+</groups>
+</root>

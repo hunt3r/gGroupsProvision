@@ -1,20 +1,18 @@
-'''This file is part of gGroupsProv.
-gGroupsProv is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+# This file is part of gGroupsProv.
+# gGroupsProv is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 
-gGroupsProv is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+# gGroupsProv is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with gGroupsProv.  If not, see <http://www.gnu.org/licenses/>.
+# You should have received a copy of the GNU General Public License
+# along with gGroupsProv.  If not, see <http://www.gnu.org/licenses/>.
 
-gGroupsProv was originally written by Chris Hunter <hunter.christopher@gmail.com> 
-'''
-
+# gGroupsProv was originally written by Chris Hunter <hunter.christopher@gmail.com>
 
 import MySQLdb
 import gdata.apps.groups.service
@@ -26,11 +24,11 @@ import time
 import sys
 
 #Begin Local Vars
-gsettings=gs.getGoogleSettings()
-dbsettings=gs.getDbSettings()
+gSettings=gs.getGoogleSettings()
+dbSettings=gs.getDbSettings()
 groups=gs.getGroups()
 #Instantiate Google Apps service here                                                                                                                               
-service=gdata.apps.groups.service.GroupsService(email=gsettings['g_email'], domain=gsettings['g_domain'], password=gsettings['g_pass'])
+service=gdata.apps.groups.service.GroupsService(email=gSettings['g_email'], domain=gSettings['g_domain'], password=gSettings['g_pass'])
 service.ProgrammaticLogin()
 #End Local Vars
 
@@ -78,7 +76,7 @@ def purgeGroup(groupId):
             print err
 
 # addUserToGroup(String groupId, string email)
-# Adds an email address to the specific group
+# Adds an email address to the specific group		
 def addUserToGroup(groupId, email):
     try:
         service.AddMemberToGroup(email, groupId) 
@@ -104,8 +102,10 @@ def removeUserFromGroup(groupId, email):
 # conversion to a standard List, and did it that way (probably a better way, please comment)
 def convertGroupMembersToDict(members):
     memberDict=[]
+    i=0
     for member in members:
-        memberDict.append(member['memberId'])
+        memberDict.append(member['memberId'].lower())
+    print "%s emails found in this list"%(str(len(memberDict)))
     return memberDict
 
 # getMembers(string groupId)
@@ -122,20 +122,21 @@ def getMembers(groupId):
 # If something is found in the database and not in the cloud, its added
 def syncGroup(groupId, dbUsers):
     print "Syncing group %s"%(groupId)
-    if groupExists("%s@%s"%(groupId, gsettings['g_domain'])):
-        members=getMembers(groupId)
+    if groupExists("%s@%s"%(groupId, gSettings['g_domain'])):
+        members=convertGroupMembersToDict(getMembers(groupId))
         #Add new users to the group
-        print "Remove users not found in list"
+        print "Remove users not found database query from group"
         for member in members:
-            if not find(member['memberId'].lower(), dbUsers):            
-              removeUserFromGroup(groupId, member['memberId'])
+            if not find(member.lower(), dbUsers):            
+              removeUserFromGroup(groupId, member)
+        print "Done."
         print "Add users found in database, but not already in google group"
         #Remove users from the list that aren't in the datafeed anymore
         for email in dbUsers:
             #Probably a better way to search in the members collection here, kinda hacked it
-            if not find(email, convertGroupMembersToDict(members)):
+            if not find(email, members):
               addUserToGroup(groupId, email)
-            
+        print "Done."
 
 # addOwner(String grupId, String owner)
 # makes a call to service to add an owner to the group
@@ -165,7 +166,7 @@ def getListOfEmailsFromDB(group):
     emails=[]
     try:
         #instantiate connectiont ot MySQL
-        db = MySQLdb.connect(host=dbsettings['db_host'], port=int(dbsettings['db_port']), user=dbsettings['db_user'], passwd=dbsettings['db_pass'], db=dbsettings['db'])
+        db = MySQLdb.connect(host=dbSettings['db_host'], port=int(dbSettings['db_port']), user=dbSettings['db_user'], passwd=dbSettings['db_pass'], db=dbSettings['db'])
         cursor = db.cursor()
         #execute the query from the xml file
         cursor.execute(group['query'])
@@ -189,7 +190,7 @@ def getListOfEmailsFromDB(group):
 # This checks to see if a group exists, then if not, creates it based on the group hash passed
 def createGroup(group):
     try:
-        if not groupExists("%s@%s"%(group['id'],gsettings['g_domain'])):
+        if not groupExists("%s@%s"%(group['id'],gSettings['g_domain'])):
             print "Provisioning Group: %s"%(group['id'])
             service.CreateGroup(group['id'],"[%s] %s" % (group['permissions'],group['name']),group['description'], group['permissions'])    
             time.sleep(3) #need to sleep the thread for a few seconds so group becomes recognized
@@ -198,24 +199,25 @@ def createGroup(group):
 
 # Main()
 def main():
-    try:
-        for group in groups:
-            try:
-                print "----------------------------------"
-                print "Starting %s "%(group['id'])
-                print "----------------------------------"
-                #Create the group if needed
-                createGroup(group)
-                #Sync emails existing and not existing
-                syncGroup(group['id'], getListOfEmailsFromDB(group))
-                #Add owners to the group
-                addOwners(group)
-            except Exception, err:
-                print err
-    except Exception, outer_err:
-        print outer_err
-        print "This is likely caused by an error in your settings.xml"
+	try:
+            #Kick off the loop
+            for group in groups:
+	    	try:
+                    print "----------------------------------"
+                    print "Starting %s "%(group['id'])
+                    print "----------------------------------"
+                    #Create the group if needed
+                    createGroup(group)
+                    #Sync emails existing and not existing
+                    syncGroup(group['id'], getListOfEmailsFromDB(group))
+                    #Add owners to the group
+                    addOwners(group)
+    		except Exception, err:
+                    print err
+	except Exception, outer_err:
+            print outer_err
+            print "This is likely caused by an error in your settings.xml"
 
 #Kick off the app
 if __name__ == '__main__':
-    sys.exit(main())
+	sys.exit(main())
